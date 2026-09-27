@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Snake Watch — Sign In</title>
+<style>
+  :root{
+    --bg: #0B0F12;
+    --panel: #12181D;
+    --panel-line: #232C33;
+    --text: #DCE4E9;
+    --muted: #6E7C85;
+    --ok: #2FA766;
+    --danger: #E23F3F;
+    --accent: #2F6B4F;
+    --sans: 'Inter', -apple-system, 'Segoe UI', sans-serif;
+    --mono: 'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace;
+  }
+  *{box-sizing:border-box;}
+  html,body{ margin:0; padding:0; height:100%; }
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:var(--sans);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    min-height:100vh;
+    padding:20px;
+  }
+  .login-card{
+    background:var(--panel);
+    border:1px solid var(--panel-line);
+    border-radius:8px;
+    padding:36px 32px;
+    width:100%;
+    max-width:360px;
+  }
+  .brand{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    justify-content:center;
+    margin-bottom:6px;
+  }
+  .brand-mark{
+    width:9px;height:9px;border-radius:50%;
+    background:var(--ok); box-shadow:0 0 8px var(--ok);
+  }
+  h1{
+    text-align:center;
+    font-size:18px;
+    margin:0 0 4px;
+    letter-spacing:0.2px;
+  }
+  .sub{
+    text-align:center;
+    color:var(--muted);
+    font-size:12.5px;
+    font-family:var(--mono);
+    margin-bottom:28px;
+  }
+  .field{ margin-bottom:16px; }
+  .field label{
+    display:block;
+    font-size:11px;
+    color:var(--muted);
+    font-weight:600;
+    letter-spacing:0.3px;
+    text-transform:uppercase;
+    margin-bottom:6px;
+  }
+  .field input{
+    width:100%;
+    background:#0D1317;
+    border:1px solid var(--panel-line);
+    color:var(--text);
+    padding:11px 12px;
+    border-radius:4px;
+    font-size:14px;
+    font-family:var(--sans);
+  }
+  .field input:focus{ outline:1px solid var(--accent); border-color:var(--accent); }
+
+  .submit-btn{
+    width:100%;
+    background:var(--ok);
+    color:#08130D;
+    border:none;
+    padding:12px;
+    border-radius:4px;
+    font-size:14px;
+    font-weight:700;
+    letter-spacing:0.3px;
+    cursor:pointer;
+    margin-top:6px;
+  }
+  .submit-btn:hover{ filter:brightness(1.1); }
+
+  .error-msg{
+    background:rgba(226,63,63,0.1);
+    border:1px solid rgba(226,63,63,0.35);
+    color:var(--danger);
+    font-size:12.5px;
+    padding:10px 12px;
+    border-radius:4px;
+    margin-bottom:18px;
+    text-align:center;
+  }
+</style>
+</head>
+<body>
+  <div class="login-card">
+    <div class="brand">
+      <span class="brand-mark"></span>
+      <h1 style="margin:0">Snake Watch</h1>
+    </div>
+    <div class="sub">Monitoring Console — Sign In</div>
+
+    {% if error %}
+    <div class="error-msg">{{ error }}</div>
+    {% endif %}
+
+    <form method="POST" action="/login">
+      <div class="field">
+        <label for="username">Username</label>
+        <input type="text" id="username" name="username" autocomplete="username" required autofocus>
+      </div>
+      <div class="field">
+        <label for="password">Password</label>
+        <input type="password" id="password" name="password" autocomplete="current-password" required>
+      </div>
+      <button type="submit" class="submit-btn">Sign In</button>
+    </form>
+  </div>
+</body>
+</html>

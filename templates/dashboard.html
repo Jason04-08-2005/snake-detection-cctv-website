@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Snake Watch — Monitoring Console</title>
+<style>
+  :root{
+    --bg: #0B0F12;
+    --panel: #12181D;
+    --panel-line: #232C33;
+    --text: #DCE4E9;
+    --muted: #6E7C85;
+    --ok: #2FA766;
+    --warn: #D9A441;
+    --danger: #E23F3F;
+    --danger-glow: rgba(226,63,63,0.35);
+    --accent: #2F6B4F;
+    --mono: 'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace;
+    --sans: 'Inter', -apple-system, 'Segoe UI', sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:var(--sans);
+    min-height:100vh;
+  }
+
+  header{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:20px 28px;
+    border-bottom:1px solid var(--panel-line);
+    background:linear-gradient(180deg, #0E1317 0%, #0B0F12 100%);
+    flex-wrap:wrap;
+    gap:12px;
+  }
+  .brand{ display:flex; align-items:baseline; gap:10px; }
+  .brand-mark{
+    width:10px;height:10px;border-radius:50%;
+    background:var(--ok); box-shadow:0 0 8px var(--ok); flex-shrink:0;
+  }
+  .brand h1{ font-size:19px; font-weight:600; letter-spacing:0.2px; margin:0; }
+  .brand span{ color:var(--muted); font-size:13px; font-family:var(--mono); }
+  .stat-row{ display:flex; gap:28px; }
+  .stat{ text-align:right; }
+  .stat .n{ font-family:var(--mono); font-size:22px; font-weight:600; line-height:1; }
+  .stat .l{ font-size:11px; color:var(--muted); margin-top:4px; }
+
+  main{ padding:24px 28px 60px; max-width:1400px; margin:0 auto; }
+
+  h2.section-title{
+    font-size:13px; font-weight:600; color:var(--muted);
+    margin:0 0 14px; padding-bottom:10px; border-bottom:1px solid var(--panel-line);
+  }
+
+  /* -------- add camera panel -------- */
+  .add-cam-panel{
+    background:var(--panel);
+    border:1px solid var(--panel-line);
+    border-radius:6px;
+    padding:18px 20px;
+    margin-bottom:32px;
+    display:flex;
+    flex-wrap:wrap;
+    align-items:flex-end;
+    gap:16px;
+  }
+  .field{ display:flex; flex-direction:column; gap:6px; }
+  .field label{ font-size:11px; color:var(--muted); font-weight:600; letter-spacing:0.3px; text-transform:uppercase; }
+  .field input, .field select{
+    background:#0D1317;
+    border:1px solid var(--panel-line);
+    color:var(--text);
+    padding:9px 11px;
+    border-radius:4px;
+    font-size:13px;
+    font-family:var(--sans);
+    min-width:190px;
+  }
+  .field input:focus, .field select:focus{ outline:1px solid var(--accent); border-color:var(--accent); }
+  .field.wide input{ min-width:280px; }
+  .field small{ color:var(--muted); font-size:10.5px; font-family:var(--mono); }
+
+  .run-btn{
+    background:var(--ok);
+    color:#08130D;
+    border:none;
+    padding:10px 22px;
+    border-radius:4px;
+    font-size:13px;
+    font-weight:700;
+    letter-spacing:0.3px;
+    cursor:pointer;
+    transition:filter 0.15s ease;
+  }
+  .run-btn:hover{ filter:brightness(1.1); }
+  .run-btn:disabled{ background:var(--muted); cursor:not-allowed; }
+
+  .form-msg{
+    width:100%;
+    font-size:12.5px;
+    font-family:var(--mono);
+    padding-top:4px;
+  }
+  .form-msg.error{ color:var(--danger); }
+  .form-msg.ok{ color:var(--ok); }
+
+  /* -------- camera grid -------- */
+  .cam-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(320px,1fr));
+    gap:16px;
+    margin-bottom:40px;
+  }
+  .cam-card{
+    background:var(--panel);
+    border:1px solid var(--panel-line);
+    border-radius:6px;
+    overflow:hidden;
+    transition:border-color 0.2s ease, box-shadow 0.2s ease;
+  }
+  .cam-card.alert{
+    border-color:var(--danger);
+    box-shadow:0 0 0 1px var(--danger), 0 0 18px var(--danger-glow);
+  }
+  .cam-feed{
+    aspect-ratio:4/3;
+    background:#030506;
+    display:flex; align-items:center; justify-content:center; position:relative;
+  }
+  .cam-feed img{ width:100%; height:100%; object-fit:cover; display:block; }
+  .cam-meta{
+    padding:12px 14px;
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+  }
+  .cam-meta .name{ font-size:14px; font-weight:600; }
+  .cam-meta .loc{ font-size:11px; color:var(--muted); margin-top:2px; font-family:var(--mono); }
+  .cam-actions{ display:flex; align-items:center; gap:8px; flex-shrink:0; }
+  .badge{
+    font-family:var(--mono); font-size:11px; padding:3px 8px; border-radius:3px; white-space:nowrap;
+  }
+  .badge.online{ background:rgba(47,167,102,0.12); color:var(--ok); }
+  .badge.reconnecting, .badge.starting{ background:rgba(217,164,65,0.12); color:var(--warn); }
+  .badge.offline{ background:rgba(110,124,133,0.12); color:var(--muted); }
+  .stop-btn{
+    background:transparent;
+    border:1px solid var(--panel-line);
+    color:var(--muted);
+    font-size:11px;
+    padding:4px 9px;
+    border-radius:4px;
+    cursor:pointer;
+  }
+  .stop-btn:hover{ border-color:var(--danger); color:var(--danger); }
+
+  .empty-state{
+    color:var(--muted);
+    font-family:var(--mono);
+    font-size:12px;
+    padding:30px;
+    text-align:center;
+    border:1px dashed var(--panel-line);
+    border-radius:6px;
+  }
+
+  /* -------- detection log -------- */
+  .log-table{
+    width:100%; border-collapse:collapse;
+    background:var(--panel); border:1px solid var(--panel-line); border-radius:6px; overflow:hidden;
+  }
+  .log-table th{
+    text-align:left; font-size:11px; color:var(--muted); font-weight:500;
+    padding:10px 14px; border-bottom:1px solid var(--panel-line);
+  }
+  .log-table td{ padding:10px 14px; font-size:13px; border-bottom:1px solid var(--panel-line); }
+  .log-table tr:last-child td{ border-bottom:none; }
+  .log-table td.conf{ font-family:var(--mono); color:var(--danger); }
+  .log-table td.time{ font-family:var(--mono); color:var(--muted); }
+  .thumb{ width:52px;height:38px;object-fit:cover;border-radius:3px; border:1px solid var(--panel-line); }
+  .empty-row td{ text-align:center; color:var(--muted); padding:28px; font-family:var(--mono); font-size:12px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <span class="brand-mark" id="systemDot"></span>
+    <h1>Snake Watch</h1>
+    <span>24/7 CCTV Monitoring Console</span>
+  </div>
+  <div class="stat-row" style="align-items:center">
+    <div class="stat"><div class="n" id="statToday">0</div><div class="l">Detections today</div></div>
+    <div class="stat"><div class="n" id="statTotal">0</div><div class="l">Total detections</div></div>
+    <div class="stat"><div class="n" id="statCams">0</div><div class="l">Active cameras</div></div>
+    {% if auth_enabled %}
+    <form method="POST" action="/logout" style="margin:0">
+      <button type="submit" class="stop-btn" style="padding:7px 14px">
+        {{ username or 'Sign out' }} — Sign out
+      </button>
+    </form>
+    {% endif %}
+  </div>
+</header>
+
+<main>
+  <h2 class="section-title">Add a Camera</h2>
+  <form class="add-cam-panel" id="addCamForm">
+    <div class="field">
+      <label for="camName">Location name</label>
+      <input type="text" id="camName" placeholder="e.g. Main Gate" required>
+    </div>
+
+    <div class="field">
+      <label for="sourceType">Camera access</label>
+      <select id="sourceType">
+        <option value="browser">This Device's Camera (asks permission)</option>
+        <option value="webcam">Server's Webcam (device index)</option>
+        <option value="custom">Custom IP / RTSP URL</option>
+      </select>
+    </div>
+
+    <div class="field" id="browserField">
+      <label>&nbsp;</label>
+      <small style="max-width:260px">Uses the camera of <strong>this browser/device</strong> — it will ask for camera permission when you press Run. Works instantly on this PC; a phone needs HTTPS (see note below).</small>
+    </div>
+
+    <div class="field" id="webcamField" style="display:none">
+      <label for="webcamIndex">Webcam index</label>
+      <input type="number" id="webcamIndex" value="0" min="0" max="5" style="min-width:100px">
+      <small>0 = default camera on the machine running the server</small>
+    </div>
+
+    <div class="field wide" id="customField" style="display:none">
+      <label for="customUrl">RTSP / HTTP URL</label>
+      <input type="text" id="customUrl" placeholder="rtsp://admin:pass@192.168.1.10:554/stream1">
+    </div>
+
+    <button type="submit" class="run-btn" id="runBtn">▶ Run</button>
+
+    <div class="form-msg" id="formMsg"></div>
+  </form>
+  <div class="form-msg" style="margin:-20px 0 32px; color:var(--muted)">
+    Note: browsers only grant camera permission on <code>localhost</code> or over HTTPS. Opening this dashboard via a plain <code>http://192.168.x.x:5000</code> link on your phone will not be allowed to use "This Device's Camera" until the site is served over HTTPS.
+  </div>
+
+  <h2 class="section-title">Live Cameras</h2>
+  <div class="cam-grid" id="camGrid">
+    <div class="empty-state" id="camEmptyState">No cameras running yet — add one above and press Run.</div>
+  </div>
+
+  <h2 class="section-title">Detection History</h2>
+  <table class="log-table">
+    <thead>
+      <tr><th>Evidence</th><th>Location</th><th>Confidence</th><th>Date</th><th>Time</th></tr>
+    </thead>
+    <tbody id="logBody">
+      <tr class="empty-row"><td colspan="5">No detections yet</td></tr>
+    </tbody>
+  </table>
+</main>
+
+<script>
+const REFRESH_MS = {{ refresh_seconds * 1000 }};
+const knownCameraIds = new Set();
+
+/* ---------- source-type field toggling ---------- */
+const sourceType = document.getElementById('sourceType');
+const browserField = document.getElementById('browserField');
+const webcamField = document.getElementById('webcamField');
+const customField = document.getElementById('customField');
+
+function updateSourceFields() {
+  browserField.style.display = sourceType.value === 'browser' ? 'flex' : 'none';
+  webcamField.style.display = sourceType.value === 'webcam' ? 'flex' : 'none';
+  customField.style.display = sourceType.value === 'custom' ? 'flex' : 'none';
+}
+sourceType.addEventListener('change', updateSourceFields);
+updateSourceFields();
+
+/* ---------- browser camera capture (getUserMedia) ---------- */
+// Tracks active browser-camera captures so Stop can release them: id -> {stream, intervalId, videoEl}
+const browserCaptures = {};
+
+async function startBrowserCapture(cameraId) {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    throw new Error('Camera access is not available here — this page must be opened over HTTPS or localhost.');
+  }
+
+  const stream = await navigator.mediaDevices.getUserMedia({
+    video: { facingMode: 'environment' },
+    audio: false,
+  });
+
+  const videoEl = document.createElement('video');
+  videoEl.srcObject = stream;
+  videoEl.playsInline = true;
+  videoEl.muted = true;
+  await videoEl.play();
+
+  const canvas = document.createElement('canvas');
+  canvas.width = 640;
+  canvas.height = 480;
+  const ctx = canvas.getContext('2d');
+
+  const intervalId = setInterval(() => {
+    if (videoEl.videoWidth === 0) return; // not ready yet
+    ctx.drawImage(videoEl, 0, 0, canvas.width, canvas.height);
+    canvas.toBlob(async (blob) => {
+      if (!blob) return;
+      try {
+        await fetch(`/api/cameras/${cameraId}/frame`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/octet-stream' },
+          body: blob,
+        });
+      } catch (e) {
+        // a dropped frame now and then is fine; the next interval tick retries
+      }
+    }, 'image/jpeg', 0.7);
+  }, 700); // ~1.4 fps upload — plenty for a snake sitting in frame
+
+  browserCaptures[cameraId] = { stream, intervalId, videoEl };
+}
+
+function stopBrowserCapture(cameraId) {
+  const cap = browserCaptures[cameraId];
+  if (!cap) return;
+  clearInterval(cap.intervalId);
+  cap.stream.getTracks().forEach((t) => t.stop());
+  delete browserCaptures[cameraId];
+}
+
+/* ---------- add camera (Run button) ---------- */
+document.getElementById('addCamForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const runBtn = document.getElementById('runBtn');
+  const msg = document.getElementById('formMsg');
+  msg.textContent = '';
+  msg.className = 'form-msg';
+
+  const name = document.getElementById('camName').value.trim() || 'Camera';
+  const type = sourceType.value;
+  let sourceValue = '';
+  if (type === 'webcam') sourceValue = document.getElementById('webcamIndex').value || '0';
+  if (type === 'custom') sourceValue = document.getElementById('customUrl').value.trim();
+
+  if (type === 'custom' && !sourceValue) {
+    msg.textContent = 'Please enter a camera URL.';
+    msg.className = 'form-msg error';
+    return;
+  }
+
+  runBtn.disabled = true;
+  runBtn.textContent = type === 'browser' ? 'Requesting camera…' : 'Connecting…';
+
+  try {
+    const res = await fetch('/api/cameras', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, source_type: type, source_value: sourceValue }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to start camera');
+
+    if (type === 'browser') {
+      await startBrowserCapture(data.id); // triggers the browser's permission prompt
+    }
+
+    msg.textContent = `"${name}" is starting…`;
+    msg.className = 'form-msg ok';
+    document.getElementById('camName').value = '';
+    refreshAll();
+  } catch (err) {
+    msg.textContent = err.message;
+    msg.className = 'form-msg error';
+  } finally {
+    runBtn.disabled = false;
+    runBtn.textContent = '▶ Run';
+  }
+});
+
+/* ---------- stop camera ---------- */
+async function stopCamera(id) {
+  try {
+    stopBrowserCapture(id); // no-op if this wasn't a browser camera
+    await fetch(`/api/cameras/${id}/stop`, { method: 'POST' });
+    knownCameraIds.delete(id);
+    const card = document.getElementById('card-' + id);
+    if (card) card.remove();
+    refreshAll();
+  } catch (e) {
+    console.error('stop failed', e);
+  }
+}
+
+/* ---------- render camera tiles ---------- */
+function ensureCard(cam) {
+  if (knownCameraIds.has(cam.id)) return;
+  knownCameraIds.add(cam.id);
+
+  document.getElementById('camEmptyState').style.display = 'none';
+
+  const card = document.createElement('div');
+  card.className = 'cam-card';
+  card.id = 'card-' + cam.id;
+  card.innerHTML = `
+    <div class="cam-feed"><img src="/video_feed/${cam.id}" alt="${cam.name}"></div>
+    <div class="cam-meta">
+      <div>
+        <div class="name">${cam.name}</div>
+        <div class="loc">${cam.id}</div>
+      </div>
+      <div class="cam-actions">
+        <span class="badge starting" id="badge-${cam.id}">starting</span>
+        <button class="stop-btn" onclick="stopCamera('${cam.id}')">Stop</button>
+      </div>
+    </div>
+  `;
+  document.getElementById('camGrid').appendChild(card);
+}
+
+/* ---------- polling ---------- */
+async function refreshStatus() {
+  try {
+    const res = await fetch('/api/cameras');
+    const data = await res.json();
+
+    document.getElementById('statToday').textContent = data.stats.today_detections;
+    document.getElementById('statTotal').textContent = data.stats.total_detections;
+    document.getElementById('statCams').textContent = data.cameras.length;
+
+    if (data.cameras.length === 0) {
+      document.getElementById('camEmptyState').style.display = 'block';
+    }
+
+    let anyAlert = false;
+    data.cameras.forEach(cam => {
+      ensureCard(cam);
+      const badge = document.getElementById('badge-' + cam.id);
+      const card = document.getElementById('card-' + cam.id);
+      if (!badge || !card) return;
+      badge.textContent = cam.status;
+      badge.className = 'badge ' + cam.status;
+
+      const recentDetection = cam.last_detection_at &&
+        (Date.now() - new Date(cam.last_detection_at).getTime()) < 15000;
+      card.classList.toggle('alert', !!recentDetection);
+      if (recentDetection) anyAlert = true;
+    });
+
+    const dot = document.getElementById('systemDot');
+    dot.style.background = anyAlert ? 'var(--danger)' : 'var(--ok)';
+    dot.style.boxShadow = anyAlert ? '0 0 8px var(--danger)' : '0 0 8px var(--ok)';
+  } catch (e) {
+    console.error('status refresh failed', e);
+  }
+}
+
+async function refreshLog() {
+  try {
+    const res = await fetch('/api/detections');
+    const rows = await res.json();
+    const body = document.getElementById('logBody');
+
+    if (!rows.length) {
+      body.innerHTML = '<tr class="empty-row"><td colspan="5">No detections yet</td></tr>';
+      return;
+    }
+
+    body.innerHTML = rows.map(r => `
+      <tr>
+        <td>${r.image_path ? `<img class="thumb" src="/static/${r.image_path}">` : '—'}</td>
+        <td>${r.camera_name}</td>
+        <td class="conf">${(r.confidence * 100).toFixed(1)}%</td>
+        <td class="time">${r.date}</td>
+        <td class="time">${r.time}</td>
+      </tr>
+    `).join('');
+  } catch (e) {
+    console.error('log refresh failed', e);
+  }
+}
+
+function refreshAll() { refreshStatus(); refreshLog(); }
+
+refreshAll();
+setInterval(refreshAll, REFRESH_MS);
+</script>
+
+</body>
+</html>
